@@ -1,8 +1,8 @@
-const { CLIEngine } = require("eslint");
+const { ESLint } = require("eslint");
 
 // see https://github.com/okonet/lint-staged#how-can-i-ignore-files-from-eslintignore-
 // for explanation
-const cli = new CLIEngine({});
+const cli = new ESLint({});
 
 module.exports = {
   "*.{js,ts,tsx}": files => {
