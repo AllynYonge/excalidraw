@@ -29,7 +29,13 @@ import { isPathALoop } from "../math";
 import rough from "roughjs/bin/rough";
 import { AppState, BinaryFiles, Zoom } from "../types";
 import { getDefaultAppState } from "../appState";
-import { MAX_DECIMALS_FOR_SVG_EXPORT, MIME_TYPES, SVG_NS } from "../constants";
+import {
+  BOUND_TEXT_PADDING,
+  MAX_DECIMALS_FOR_SVG_EXPORT,
+  MIME_TYPES,
+  SVG_NS,
+  VERTICAL_ALIGN,
+} from "../constants";
 import { getStroke, StrokeOptions } from "perfect-freehand";
 import { getApproxLineHeight } from "../element/textElement";
 
@@ -264,7 +270,11 @@ const drawElementOnCanvas = (
         const lineHeight = element.containerId
           ? getApproxLineHeight(getFontString(element))
           : element.height / lines.length;
-        const verticalOffset = element.height - element.baseline;
+        let verticalOffset = element.height - element.baseline;
+        if (element.verticalAlign === VERTICAL_ALIGN.BOTTOM) {
+          verticalOffset = BOUND_TEXT_PADDING;
+        }
+
         const horizontalOffset =
           element.textAlign === "center"
             ? element.width / 2
@@ -836,6 +846,18 @@ export const renderElementToSvg = (
   const cy = (y2 - y1) / 2 - (element.y - y1);
   const degree = (180 * element.angle) / Math.PI;
   const generator = rsvg.generator;
+
+  // element to append node to, most of the time svgRoot
+  let root = svgRoot;
+
+  // if the element has a link, create an anchor tag and make that the new root
+  if (element.link) {
+    const anchorTag = svgRoot.ownerDocument!.createElementNS(SVG_NS, "a");
+    anchorTag.setAttribute("href", element.link);
+    root.appendChild(anchorTag);
+    root = anchorTag;
+  }
+
   switch (element.type) {
     case "selection": {
       // Since this is used only during editing experience, which is canvas based,
@@ -863,7 +885,7 @@ export const renderElementToSvg = (
           offsetY || 0
         }) rotate(${degree} ${cx} ${cy})`,
       );
-      svgRoot.appendChild(node);
+      root.appendChild(node);
       break;
     }
     case "line":
@@ -898,10 +920,11 @@ export const renderElementToSvg = (
         }
         group.appendChild(node);
       });
-      svgRoot.appendChild(group);
+      root.appendChild(group);
       break;
     }
     case "freedraw": {
+      generateElementShape(element, generator);
       generateFreeDrawShape(element);
       const opacity = element.opacity / 100;
       const shape = getShapeForElement(element);
@@ -923,7 +946,7 @@ export const renderElementToSvg = (
       path.setAttribute("fill", element.strokeColor);
       path.setAttribute("d", getFreeDrawSvgPath(element));
       node.appendChild(path);
-      svgRoot.appendChild(node);
+      root.appendChild(node);
       break;
     }
     case "image": {
@@ -944,7 +967,7 @@ export const renderElementToSvg = (
 
           symbol.appendChild(image);
 
-          svgRoot.prepend(symbol);
+          root.prepend(symbol);
         }
 
         const use = svgRoot.ownerDocument!.createElementNS(SVG_NS, "use");
@@ -965,7 +988,7 @@ export const renderElementToSvg = (
           }) rotate(${degree} ${cx} ${cy})`,
         );
 
-        svgRoot.appendChild(use);
+        root.appendChild(use);
       }
       break;
     }
@@ -1012,7 +1035,7 @@ export const renderElementToSvg = (
           text.setAttribute("direction", direction);
           node.appendChild(text);
         }
-        svgRoot.appendChild(node);
+        root.appendChild(node);
       } else {
         // @ts-ignore
         throw new Error(`Unimplemented type ${element.type}`);
