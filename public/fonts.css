@@ -11,3 +11,33 @@
   src: url("Cascadia.woff2");
   font-display: swap;
 }
+
+@font-face {
+  font-family: "HanyiSentyDiary";
+  src: url("HanyiSentyDiary.ttf");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "YrdRegular";
+  src: url("YrdRegular.ttf");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "HKSztW5";
+  src: url("HKSztW5.ttf");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "HK";
+  src: url("HK.ttf");
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "FangZhengKaiTiJianTi";
+  src: url("FangZhengKaiTiJianTi.ttf");
+  font-display: swap;
+}

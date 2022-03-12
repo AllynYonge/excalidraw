@@ -70,6 +70,11 @@ export const FONT_FAMILY = {
   Virgil: 1,
   Helvetica: 2,
   Cascadia: 3,
+  HanyiSentyDiary: 4,
+  YrdRegular: 5,
+  HKSztW5: 6,
+  HK: 7,
+  FangZhengKaiTiJianTi: 8,
 };
 
 export const THEME = {

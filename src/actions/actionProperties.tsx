@@ -654,20 +654,35 @@ export const actionChangeFontFamily = register({
       icon: JSX.Element;
     }[] = [
       {
-        value: FONT_FAMILY.Virgil,
+        value: FONT_FAMILY.HanyiSentyDiary,
         text: t("labels.handDrawn"),
         icon: <FontFamilyHandDrawnIcon theme={appState.theme} />,
       },
       {
-        value: FONT_FAMILY.Helvetica,
+        value: FONT_FAMILY.YrdRegular,
+        text: t("labels.handDrawn"),
+        icon: <FontFamilyHandDrawnIcon theme={appState.theme} />,
+      },
+      {
+        value: FONT_FAMILY.HKSztW5,
         text: t("labels.normal"),
         icon: <FontFamilyNormalIcon theme={appState.theme} />,
       },
       {
-        value: FONT_FAMILY.Cascadia,
-        text: t("labels.code"),
-        icon: <FontFamilyCodeIcon theme={appState.theme} />,
+        value: FONT_FAMILY.HK,
+        text: t("labels.handDrawn"),
+        icon: <FontFamilyNormalIcon theme={appState.theme} />,
       },
+      {
+        value: FONT_FAMILY.FangZhengKaiTiJianTi,
+        text: t("labels.handDrawn"),
+        icon: <FontFamilyNormalIcon theme={appState.theme} />,
+      },
+      // {
+      //   value: FONT_FAMILY.Cascadia,
+      //   text: t("labels.code"),
+      //   icon: <FontFamilyCodeIcon theme={appState.theme} />,
+      // },
     ];
 
     return (
