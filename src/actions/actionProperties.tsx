@@ -166,11 +166,7 @@ const changeFontSize = (
           let newElement: ExcalidrawTextElement = newElementWith(oldElement, {
             fontSize: newFontSize,
           });
-          redrawTextBoundingBox(
-            newElement,
-            getContainerElement(oldElement),
-            appState,
-          );
+          redrawTextBoundingBox(newElement, getContainerElement(oldElement));
 
           newElement = offsetElementAfterFontResize(oldElement, newElement);
 
@@ -198,6 +194,7 @@ const changeFontSize = (
 
 export const actionChangeStrokeColor = register({
   name: "changeStrokeColor",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       ...(value.currentItemStrokeColor && {
@@ -247,6 +244,7 @@ export const actionChangeStrokeColor = register({
 
 export const actionChangeBackgroundColor = register({
   name: "changeBackgroundColor",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       ...(value.currentItemBackgroundColor && {
@@ -289,6 +287,7 @@ export const actionChangeBackgroundColor = register({
 
 export const actionChangeFillStyle = register({
   name: "changeFillStyle",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(elements, appState, (el) =>
@@ -338,6 +337,7 @@ export const actionChangeFillStyle = register({
 
 export const actionChangeStrokeWidth = register({
   name: "changeStrokeWidth",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(elements, appState, (el) =>
@@ -385,6 +385,7 @@ export const actionChangeStrokeWidth = register({
 
 export const actionChangeSloppiness = register({
   name: "changeSloppiness",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(elements, appState, (el) =>
@@ -433,6 +434,7 @@ export const actionChangeSloppiness = register({
 
 export const actionChangeStrokeStyle = register({
   name: "changeStrokeStyle",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(elements, appState, (el) =>
@@ -480,6 +482,7 @@ export const actionChangeStrokeStyle = register({
 
 export const actionChangeOpacity = register({
   name: "changeOpacity",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(elements, appState, (el) =>
@@ -529,6 +532,7 @@ export const actionChangeOpacity = register({
 
 export const actionChangeFontSize = register({
   name: "changeFontSize",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return changeFontSize(elements, appState, () => value, value);
   },
@@ -586,6 +590,7 @@ export const actionChangeFontSize = register({
 
 export const actionDecreaseFontSize = register({
   name: "decreaseFontSize",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return changeFontSize(elements, appState, (element) =>
       Math.round(
@@ -607,6 +612,7 @@ export const actionDecreaseFontSize = register({
 
 export const actionIncreaseFontSize = register({
   name: "increaseFontSize",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return changeFontSize(elements, appState, (element) =>
       Math.round(element.fontSize * (1 + FONT_SIZE_RELATIVE_INCREASE_STEP)),
@@ -624,6 +630,7 @@ export const actionIncreaseFontSize = register({
 
 export const actionChangeFontFamily = register({
   name: "changeFontFamily",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(
@@ -637,11 +644,7 @@ export const actionChangeFontFamily = register({
                 fontFamily: value,
               },
             );
-            redrawTextBoundingBox(
-              newElement,
-              getContainerElement(oldElement),
-              appState,
-            );
+            redrawTextBoundingBox(newElement, getContainerElement(oldElement));
             return newElement;
           }
 
@@ -724,6 +727,7 @@ export const actionChangeFontFamily = register({
 
 export const actionChangeTextAlign = register({
   name: "changeTextAlign",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(
@@ -735,11 +739,7 @@ export const actionChangeTextAlign = register({
               oldElement,
               { textAlign: value },
             );
-            redrawTextBoundingBox(
-              newElement,
-              getContainerElement(oldElement),
-              appState,
-            );
+            redrawTextBoundingBox(newElement, getContainerElement(oldElement));
             return newElement;
           }
 
@@ -800,6 +800,7 @@ export const actionChangeTextAlign = register({
 });
 export const actionChangeVerticalAlign = register({
   name: "changeVerticalAlign",
+  trackEvent: { category: "element" },
   perform: (elements, appState, value) => {
     return {
       elements: changeProperty(
@@ -812,11 +813,7 @@ export const actionChangeVerticalAlign = register({
               { verticalAlign: value },
             );
 
-            redrawTextBoundingBox(
-              newElement,
-              getContainerElement(oldElement),
-              appState,
-            );
+            redrawTextBoundingBox(newElement, getContainerElement(oldElement));
             return newElement;
           }
 
@@ -871,6 +868,7 @@ export const actionChangeVerticalAlign = register({
 
 export const actionChangeSharpness = register({
   name: "changeSharpness",
+  trackEvent: false,
   perform: (elements, appState, value) => {
     const targetElements = getTargetElements(
       getNonDeletedElements(elements),
@@ -878,10 +876,10 @@ export const actionChangeSharpness = register({
     );
     const shouldUpdateForNonLinearElements = targetElements.length
       ? targetElements.every((el) => !isLinearElement(el))
-      : !isLinearElementType(appState.elementType);
+      : !isLinearElementType(appState.activeTool.type);
     const shouldUpdateForLinearElements = targetElements.length
       ? targetElements.every(isLinearElement)
-      : isLinearElementType(appState.elementType);
+      : isLinearElementType(appState.activeTool.type);
     return {
       elements: changeProperty(elements, appState, (el) =>
         newElementWith(el, {
@@ -921,8 +919,8 @@ export const actionChangeSharpness = register({
           elements,
           appState,
           (element) => element.strokeSharpness,
-          (canChangeSharpness(appState.elementType) &&
-            (isLinearElementType(appState.elementType)
+          (canChangeSharpness(appState.activeTool.type) &&
+            (isLinearElementType(appState.activeTool.type)
               ? appState.currentItemLinearStrokeSharpness
               : appState.currentItemStrokeSharpness)) ||
             null,
@@ -935,6 +933,7 @@ export const actionChangeSharpness = register({
 
 export const actionChangeArrowhead = register({
   name: "changeArrowhead",
+  trackEvent: false,
   perform: (
     elements,
     appState,

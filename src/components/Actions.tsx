@@ -15,22 +15,28 @@ import {
 } from "../scene";
 import { SHAPES } from "../shapes";
 import { AppState, Zoom } from "../types";
-import { capitalizeString, isTransparent, setCursorForShape } from "../utils";
+import {
+  capitalizeString,
+  isTransparent,
+  setCursorForShape,
+  withBatchedUpdates,
+} from "../utils";
 import Stack from "./Stack";
 import { ToolButton } from "./ToolButton";
 import { hasStrokeColor } from "../scene/comparisons";
+import { trackEvent } from "../analytics";
 import { hasBoundTextElement, isBoundToContainer } from "../element/typeChecks";
 
 export const SelectedShapeActions = ({
   appState,
   elements,
   renderAction,
-  elementType,
+  activeTool,
 }: {
   appState: AppState;
   elements: readonly ExcalidrawElement[];
   renderAction: ActionManager["renderAction"];
-  elementType: AppState["elementType"];
+  activeTool: AppState["activeTool"]["type"];
 }) => {
   const targetElements = getTargetElements(
     getNonDeletedElements(elements),
@@ -50,14 +56,17 @@ export const SelectedShapeActions = ({
   const isRTL = document.documentElement.getAttribute("dir") === "rtl";
 
   const showFillIcons =
-    hasBackground(elementType) ||
+    hasBackground(activeTool) ||
     targetElements.some(
       (element) =>
         hasBackground(element.type) && !isTransparent(element.backgroundColor),
     );
   const showChangeBackgroundIcons =
-    hasBackground(elementType) ||
+    hasBackground(activeTool) ||
     targetElements.some((element) => hasBackground(element.type));
+
+  const showLinkIcon =
+    targetElements.length === 1 || isSingleElementBoundContainer;
 
   let commonSelectedType: string | null = targetElements[0]?.type || null;
 
@@ -70,23 +79,23 @@ export const SelectedShapeActions = ({
 
   return (
     <div className="panelColumn">
-      {((hasStrokeColor(elementType) &&
-        elementType !== "image" &&
+      {((hasStrokeColor(activeTool) &&
+        activeTool !== "image" &&
         commonSelectedType !== "image") ||
         targetElements.some((element) => hasStrokeColor(element.type))) &&
         renderAction("changeStrokeColor")}
       {showChangeBackgroundIcons && renderAction("changeBackgroundColor")}
       {showFillIcons && renderAction("changeFillStyle")}
 
-      {(hasStrokeWidth(elementType) ||
+      {(hasStrokeWidth(activeTool) ||
         targetElements.some((element) => hasStrokeWidth(element.type))) &&
         renderAction("changeStrokeWidth")}
 
-      {(elementType === "freedraw" ||
+      {(activeTool === "freedraw" ||
         targetElements.some((element) => element.type === "freedraw")) &&
         renderAction("changeStrokeShape")}
 
-      {(hasStrokeStyle(elementType) ||
+      {(hasStrokeStyle(activeTool) ||
         targetElements.some((element) => hasStrokeStyle(element.type))) && (
         <>
           {renderAction("changeStrokeStyle")}
@@ -94,12 +103,12 @@ export const SelectedShapeActions = ({
         </>
       )}
 
-      {(canChangeSharpness(elementType) ||
+      {(canChangeSharpness(activeTool) ||
         targetElements.some((element) => canChangeSharpness(element.type))) && (
         <>{renderAction("changeSharpness")}</>
       )}
 
-      {(hasText(elementType) ||
+      {(hasText(activeTool) ||
         targetElements.some((element) => hasText(element.type))) && (
         <>
           {renderAction("changeFontSize")}
@@ -114,7 +123,7 @@ export const SelectedShapeActions = ({
         (element) =>
           hasBoundTextElement(element) || isBoundToContainer(element),
       ) && renderAction("changeVerticalAlign")}
-      {(canHaveArrowheads(elementType) ||
+      {(canHaveArrowheads(activeTool) ||
         targetElements.some((element) => canHaveArrowheads(element.type))) && (
         <>{renderAction("changeArrowhead")}</>
       )}
@@ -172,7 +181,7 @@ export const SelectedShapeActions = ({
             {!deviceType.isMobile && renderAction("deleteSelectedElements")}
             {renderAction("group")}
             {renderAction("ungroup")}
-            {targetElements.length === 1 && renderAction("hyperlink")}
+            {showLinkIcon && renderAction("hyperlink")}
           </div>
         </fieldset>
       )}
@@ -182,53 +191,83 @@ export const SelectedShapeActions = ({
 
 export const ShapesSwitcher = ({
   canvas,
-  elementType,
+  activeTool,
   setAppState,
   onImageAction,
   appState,
 }: {
   canvas: HTMLCanvasElement | null;
-  elementType: AppState["elementType"];
+  activeTool: AppState["activeTool"];
   setAppState: React.Component<any, AppState>["setState"];
   onImageAction: (data: { pointerType: PointerType | null }) => void;
   appState: AppState;
-}) => (
-  <>
-    {SHAPES.map(({ value, icon, key }, index) => {
-      const label = t(`toolBar.${value}`);
-      const letter = key && (typeof key === "string" ? key : key[0]);
-      const shortcut = letter
-        ? `${capitalizeString(letter)} ${t("helpDialog.or")} ${index + 1}`
-        : `${index + 1}`;
-      return (
-        <ToolButton
-          className="Shape"
-          key={value}
-          type="radio"
-          icon={icon}
-          checked={elementType === value}
-          name="editor-current-shape"
-          title={`${capitalizeString(label)} — ${shortcut}`}
-          keyBindingLabel={`${index + 1}`}
-          aria-label={capitalizeString(label)}
-          aria-keyshortcuts={shortcut}
-          data-testid={value}
-          onChange={({ pointerType }) => {
-            setAppState({
-              elementType: value,
-              multiElement: null,
-              selectedElementIds: {},
-            });
-            setCursorForShape(canvas, { ...appState, elementType: value });
-            if (value === "image") {
-              onImageAction({ pointerType });
-            }
-          }}
-        />
-      );
-    })}
-  </>
-);
+}) => {
+  const onChange = withBatchedUpdates(
+    ({
+      activeToolType,
+      pointerType,
+    }: {
+      activeToolType: typeof SHAPES[number]["value"];
+      pointerType: PointerType | null;
+    }) => {
+      if (appState.activeTool.type !== activeToolType) {
+        trackEvent("toolbar", activeToolType, "ui");
+      }
+      if (!appState.penDetected && pointerType === "pen") {
+        setAppState({
+          penDetected: true,
+          penMode: true,
+        });
+      }
+      const nextActiveTool = { ...activeTool, type: activeToolType };
+      setAppState({
+        activeTool: nextActiveTool,
+        multiElement: null,
+        selectedElementIds: {},
+      });
+      setCursorForShape(canvas, {
+        ...appState,
+        activeTool: nextActiveTool,
+      });
+      if (activeToolType === "image") {
+        onImageAction({ pointerType });
+      }
+    },
+  );
+
+  return (
+    <>
+      {SHAPES.map(({ value, icon, key }, index) => {
+        const label = t(`toolBar.${value}`);
+        const letter = key && (typeof key === "string" ? key : key[0]);
+        const shortcut = letter
+          ? `${capitalizeString(letter)} ${t("helpDialog.or")} ${index + 1}`
+          : `${index + 1}`;
+        return (
+          <ToolButton
+            className="Shape"
+            key={value}
+            type="radio"
+            icon={icon}
+            checked={activeTool.type === value}
+            name="editor-current-shape"
+            title={`${capitalizeString(label)} — ${shortcut}`}
+            keyBindingLabel={`${index + 1}`}
+            aria-label={capitalizeString(label)}
+            aria-keyshortcuts={shortcut}
+            data-testid={value}
+            onPointerDown={({ pointerType }) => {
+              onChange({ activeToolType: value, pointerType });
+            }}
+            onChange={({ pointerType }) => {
+              onChange({ activeToolType: value, pointerType });
+            }}
+          />
+        );
+      })}
+    </>
+  );
+};
 
 export const ZoomActions = ({
   renderAction,
