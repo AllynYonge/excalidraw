@@ -18,8 +18,8 @@ import { AppState, Zoom } from "../types";
 import {
   capitalizeString,
   isTransparent,
+  updateActiveTool,
   setCursorForShape,
-  withBatchedUpdates,
 } from "../utils";
 import Stack from "./Stack";
 import { ToolButton } from "./ToolButton";
@@ -201,73 +201,60 @@ export const ShapesSwitcher = ({
   setAppState: React.Component<any, AppState>["setState"];
   onImageAction: (data: { pointerType: PointerType | null }) => void;
   appState: AppState;
-}) => {
-  const onChange = withBatchedUpdates(
-    ({
-      activeToolType,
-      pointerType,
-    }: {
-      activeToolType: typeof SHAPES[number]["value"];
-      pointerType: PointerType | null;
-    }) => {
-      if (appState.activeTool.type !== activeToolType) {
-        trackEvent("toolbar", activeToolType, "ui");
-      }
-      if (!appState.penDetected && pointerType === "pen") {
-        setAppState({
-          penDetected: true,
-          penMode: true,
-        });
-      }
-      const nextActiveTool = { ...activeTool, type: activeToolType };
-      setAppState({
-        activeTool: nextActiveTool,
-        multiElement: null,
-        selectedElementIds: {},
-      });
-      setCursorForShape(canvas, {
-        ...appState,
-        activeTool: nextActiveTool,
-      });
-      if (activeToolType === "image") {
-        onImageAction({ pointerType });
-      }
-    },
-  );
-
-  return (
-    <>
-      {SHAPES.map(({ value, icon, key }, index) => {
-        const label = t(`toolBar.${value}`);
-        const letter = key && (typeof key === "string" ? key : key[0]);
-        const shortcut = letter
-          ? `${capitalizeString(letter)} ${t("helpDialog.or")} ${index + 1}`
-          : `${index + 1}`;
-        return (
-          <ToolButton
-            className="Shape"
-            key={value}
-            type="radio"
-            icon={icon}
-            checked={activeTool.type === value}
-            name="editor-current-shape"
-            title={`${capitalizeString(label)} — ${shortcut}`}
-            keyBindingLabel={`${index + 1}`}
-            aria-label={capitalizeString(label)}
-            aria-keyshortcuts={shortcut}
-            data-testid={value}
-            onPointerDown={({ pointerType }) => {
-              onChange({ activeToolType: value, pointerType });
-            }}
-            onChange={({ pointerType }) => {
-              onChange({ activeToolType: value, pointerType });
-            }}
-          />
-        );
-      })}
-    </>
-  );
-};
+}) => (
+  <>
+    {SHAPES.map(({ value, icon, key }, index) => {
+      const label = t(`toolBar.${value}`);
+      const letter = key && (typeof key === "string" ? key : key[0]);
+      const shortcut = letter
+        ? `${capitalizeString(letter)} ${t("helpDialog.or")} ${index + 1}`
+        : `${index + 1}`;
+      return (
+        <ToolButton
+          className="Shape"
+          key={value}
+          type="radio"
+          icon={icon}
+          checked={activeTool.type === value}
+          name="editor-current-shape"
+          title={`${capitalizeString(label)} — ${shortcut}`}
+          keyBindingLabel={`${index + 1}`}
+          aria-label={capitalizeString(label)}
+          aria-keyshortcuts={shortcut}
+          data-testid={value}
+          onPointerDown={({ pointerType }) => {
+            if (!appState.penDetected && pointerType === "pen") {
+              setAppState({
+                penDetected: true,
+                penMode: true,
+              });
+            }
+          }}
+          onChange={({ pointerType }) => {
+            if (appState.activeTool.type !== value) {
+              trackEvent("toolbar", value, "ui");
+            }
+            const nextActiveTool = updateActiveTool(appState, {
+              type: value,
+            });
+            setAppState({
+              activeTool: nextActiveTool,
+              multiElement: null,
+              selectedElementIds: {},
+            });
+            setCursorForShape(canvas, {
+              ...appState,
+              activeTool: nextActiveTool,
+            });
+            if (value === "image") {
+              onImageAction({ pointerType });
+            }
+          }}
+        />
+      );
+    })}
+  </>
+);
 
 export const ZoomActions = ({
   renderAction,

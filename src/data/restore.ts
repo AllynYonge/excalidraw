@@ -10,7 +10,11 @@ import {
   NormalizedZoomValue,
 } from "../types";
 import { ImportedDataState } from "./types";
-import { getNormalizedDimensions, isInvisiblySmallElement } from "../element";
+import {
+  getNonDeletedElements,
+  getNormalizedDimensions,
+  isInvisiblySmallElement,
+} from "../element";
 import { isLinearElementType } from "../element/typeChecks";
 import { randomId } from "../random";
 import {
@@ -22,7 +26,7 @@ import {
 import { getDefaultAppState } from "../appState";
 import { LinearElementEditor } from "../element/linearElementEditor";
 import { bumpVersion } from "../element/mutateElement";
-import { getUpdatedTimestamp } from "../utils";
+import { getUpdatedTimestamp, updateActiveTool } from "../utils";
 import { arrayToMap } from "../utils";
 
 type RestoredAppState = Omit<
@@ -44,6 +48,7 @@ export const AllowedExcalidrawActiveTools: Record<
   arrow: true,
   freedraw: true,
   eraser: false,
+  custom: true,
 };
 
 export type RestoredDataState = {
@@ -107,6 +112,7 @@ const restoreElementWithProperties = <
       : element.boundElements ?? [],
     updated: element.updated ?? getUpdatedTimestamp(),
     link: element.link ?? null,
+    locked: element.locked ?? false,
   };
 
   return {
@@ -193,6 +199,7 @@ const restoreElement = (
         y,
       });
     }
+
     // generic elements
     case "ellipse":
       return restoreElementWithProperties(element, {});
@@ -250,18 +257,24 @@ export const restoreAppState = (
         ? localValue
         : defaultValue;
   }
+
   return {
     ...nextAppState,
+    cursorButton: localAppState?.cursorButton || "up",
     // reset on fresh restore so as to hide the UI button if penMode not active
     penDetected:
       localAppState?.penDetected ??
       (appState.penMode ? appState.penDetected ?? false : false),
     activeTool: {
+      ...updateActiveTool(
+        defaultAppState,
+        nextAppState.activeTool.type &&
+          AllowedExcalidrawActiveTools[nextAppState.activeTool.type]
+          ? nextAppState.activeTool
+          : { type: "selection" },
+      ),
       lastActiveToolBeforeEraser: null,
       locked: nextAppState.activeTool.locked ?? false,
-      type: AllowedExcalidrawActiveTools[nextAppState.activeTool.type]
-        ? nextAppState.activeTool.type ?? "selection"
-        : "selection",
     },
     // Migrates from previous version where appState.zoom was a number
     zoom:
@@ -274,7 +287,7 @@ export const restoreAppState = (
 };
 
 export const restore = (
-  data: ImportedDataState | null,
+  data: Pick<ImportedDataState, "appState" | "elements" | "files"> | null,
   /**
    * Local AppState (`this.state` or initial state from localStorage) so that we
    * don't overwrite local state with default values (when values not
@@ -291,28 +304,45 @@ export const restore = (
   };
 };
 
+const restoreLibraryItem = (libraryItem: LibraryItem) => {
+  const elements = restoreElements(
+    getNonDeletedElements(libraryItem.elements),
+    null,
+  );
+  return elements.length ? { ...libraryItem, elements } : null;
+};
+
 export const restoreLibraryItems = (
-  libraryItems: NonOptional<ImportedDataState["libraryItems"]>,
+  libraryItems: ImportedDataState["libraryItems"] = [],
   defaultStatus: LibraryItem["status"],
 ) => {
   const restoredItems: LibraryItem[] = [];
   for (const item of libraryItems) {
     // migrate older libraries
     if (Array.isArray(item)) {
-      restoredItems.push({
+      const restoredItem = restoreLibraryItem({
         status: defaultStatus,
         elements: item,
         id: randomId(),
         created: Date.now(),
       });
+      if (restoredItem) {
+        restoredItems.push(restoredItem);
+      }
     } else {
-      const _item = item as MarkOptional<LibraryItem, "id" | "status">;
-      restoredItems.push({
+      const _item = item as MarkOptional<
+        LibraryItem,
+        "id" | "status" | "created"
+      >;
+      const restoredItem = restoreLibraryItem({
         ..._item,
         id: _item.id || randomId(),
         status: _item.status || defaultStatus,
         created: _item.created || Date.now(),
       });
+      if (restoredItem) {
+        restoredItems.push(restoredItem);
+      }
     }
   }
   return restoredItems;

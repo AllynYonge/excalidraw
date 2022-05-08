@@ -48,7 +48,7 @@ If you are using a Web bundler (for instance, Webpack), you can import it as an 
 
 ```js
 import React, { useEffect, useState, useRef } from "react";
-import Excalidraw from "@excalidraw/excalidraw-next";
+import { Excalidraw } from "@excalidraw/excalidraw-next";
 import InitialData from "./initialData";
 
 import "./styles.scss";
@@ -328,7 +328,7 @@ const App = () => {
         className: "excalidraw-wrapper",
         ref: excalidrawWrapperRef,
       },
-      React.createElement(Excalidraw.default, {
+      React.createElement(ExcalidrawLib.Excalidraw, {
         initialData: InitialData,
         onChange: (elements, state) =>
           console.log("Elements :", elements, "State : ", state),
@@ -436,7 +436,7 @@ This helps to load Excalidraw with `initialData`. It must be an object or a [pro
 | `elements` | [ExcalidrawElement[]](https://github.com/excalidraw/excalidraw/blob/master/src/element/types.ts#L78) | The elements with which Excalidraw should be mounted. |
 | `appState` | [AppState](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L42) | The App state with which Excalidraw should be mounted. |
 | `scrollToContent` | boolean | This attribute implies whether to scroll to the nearest element to center once Excalidraw is mounted. By default, it will not scroll the nearest element to the center. Make sure you pass `initialData.appState.scrollX` and `initialData.appState.scrollY` when `scrollToContent` is false so that scroll positions are retained |
-| `libraryItems` | [LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L151) | This library items with which Excalidraw should be mounted. |
+| `libraryItems` | [LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200) &#124; Promise<[LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200)> | This library items with which Excalidraw should be mounted. |
 | `files` | [BinaryFiles](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L64) | The files added to the scene. |
 
 ```json
@@ -512,9 +512,9 @@ You can use this function to update the scene with the sceneData. It accepts the
 | --- | --- | --- |
 | `elements` | [`ImportedDataState["elements"]`](https://github.com/excalidraw/excalidraw/blob/master/src/data/types.ts#L17) | The `elements` to be updated in the scene |
 | `appState` | [`ImportedDataState["appState"]`](https://github.com/excalidraw/excalidraw/blob/master/src/data/types.ts#L18) | The `appState` to be updated in the scene. |
-| `collaborators` | <pre>Map<string, <a href="https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L29">Collaborator></a></pre> | The list of collaborators to be updated in the scene. |
+| `collaborators` | <pre>Map<string, <a href="https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L35">Collaborator></a></pre> | The list of collaborators to be updated in the scene. |
 | `commitToHistory` | `boolean` | Implies if the `history (undo/redo)` should be recorded. Defaults to `false`. |
-| `libraryItems` | [LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L258) | The `libraryItems` to be update in the scene. |
+| `libraryItems` | [LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200) &#124; Promise<[LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200)> &#124; ((currentItems: [LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200)>) => [LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200) &#124; Promise<[LibraryItems](https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200)>) | The `libraryItems` to be update in the scene. |
 
 ### `addFiles`
 
@@ -802,6 +802,24 @@ import { restore } from "@excalidraw/excalidraw-next";
 
 This function makes sure elements and state is set to appropriate values and set to default value if not present. It is a combination of [restoreElements](#restoreElements) and [restoreAppState](#restoreAppState).
 
+#### `restoreLibraryItems`
+
+**_Signature_**
+
+<pre>
+restoreLibraryItems(libraryItems: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/data/types.ts#L22">ImportedDataState["libraryItems"]</a>, defaultStatus: "published" | "unpublished")
+</pre>
+
+**_How to use_**
+
+```js
+import { restoreLibraryItems } from "@excalidraw/excalidraw-next";
+
+restoreLibraryItems(libraryItems, "unpublished");
+```
+
+This function normalizes library items elements, adding missing values when needed.
+
 ### Export utilities
 
 #### `exportToCanvas`
@@ -839,7 +857,7 @@ This function returns the canvas with the exported elements, appState and dimens
 
 <pre>
 exportToBlob(
-  opts: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/packages/utils.ts#L10">ExportOpts</a> & {
+  opts: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/packages/utils.ts#L14">ExportOpts</a> & {
   mimeType?: string,
   quality?: number;
 })
@@ -882,6 +900,34 @@ exportToSvg({
 
 This function returns a promise which resolves to svg of the exported drawing.
 
+#### `exportToClipboard`
+
+**_Signature_**
+
+<pre>
+exportToClipboard(
+  opts: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/packages/utils.ts#L14">ExportOpts</a> & {
+  mimeType?: string,
+  quality?: number;
+  type: 'png' | 'svg' |'json'
+})
+</pre>
+
+| Name | Type | Default | Description |
+| --- | --- | --- | --- | --- | --- |
+| opts |  |  | This param is same as the params passed to `exportToCanvas`. You can refer to [`exportToCanvas`](#exportToCanvas). |
+| mimeType | string | "image/png" | Indicates the image format, this will be used when exporting as `png`. |
+| quality | number | 0.92 | A value between 0 and 1 indicating the [image quality](https://developer.mozilla.org/en-US/docs/Web/API/HTMLCanvasElement/toBlob#parameters). Applies only to `image/jpeg`/`image/webp` MIME types. This will be used when exporting as `png`. |
+| type | 'png' | 'svg' | 'json' |  | This determines the format to which the scene data should be exported. |
+
+**How to use**
+
+```js
+import { exportToClipboard } from "@excalidraw/excalidraw-next";
+```
+
+Copies the scene data in the specified format (determined by `type`) to clipboard.
+
 ##### Additional attributes of appState for `export\*` APIs
 
 | Name | Type | Default | Description |
@@ -889,7 +935,7 @@ This function returns a promise which resolves to svg of the exported drawing.
 | exportBackground | boolean | true | Indicates whether background should be exported |
 | viewBackgroundColor | string | #fff | The default background color |
 | exportWithDarkMode | boolean | false | Indicates whether to export with dark mode |
-| exportEmbedScene | boolean | false | Indicates whether scene data should be embedded in svg. This will increase the svg size. |
+| exportEmbedScene | boolean | false | Indicates whether scene data should be embedded in svg/png. This will increase the image size. |
 
 ### Extra API's
 
@@ -905,6 +951,21 @@ serializeAsJSON({
 </pre>
 
 Takes the scene elements and state and returns a JSON string. Deleted `elements`as well as most properties from `AppState` are removed from the resulting JSON. (see [`serializeAsJSON()`](https://github.com/excalidraw/excalidraw/blob/master/src/data/json.ts#L16) source for details).
+
+If you want to overwrite the source field in the JSON string, you can set `window.EXCALIDRAW_EXPORT_SOURCE` to the desired value.
+
+#### `serializeLibraryAsJSON`
+
+**_Signature_**
+
+<pre>
+serializeLibraryAsJSON({
+  libraryItems: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200">LibraryItems[]</a>,
+</pre>
+
+Takes the library items and returns a JSON string.
+
+If you want to overwrite the source field in the JSON string, you can set `window.EXCALIDRAW_EXPORT_SOURCE` to the desired value.
 
 #### `getSceneVersion`
 
@@ -1011,6 +1072,20 @@ getNonDeletedElements(elements: <a href="https://github.com/excalidraw/excalidra
 
 This function returns an array of deleted elements.
 
+#### `mergeLibraryItems`
+
+```js
+import { mergeLibraryItems } from "@excalidraw/excalidraw-next";
+```
+
+**_Signature_**
+
+<pre>
+mergeLibraryItems(localItems: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200">LibraryItems</a>, otherItems: <a href="https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200">LibraryItems</a>) => <a href="https://github.com/excalidraw/excalidraw/blob/master/src/types.ts#L200">LibraryItems</a>
+</pre>
+
+This function merges two `LibraryItems` arrays, where unique items from `otherItems` are sorted first in the returned array.
+
 ### Exported constants
 
 #### `FONT_FAMILY`
@@ -1047,6 +1122,16 @@ import { THEME } from "@excalidraw/excalidraw-next";
 | DARK  | The Dark theme  |
 
 Defaults to `THEME.LIGHT` unless passed in `initialData.appState.theme`
+
+### `MIME_TYPES`
+
+**How to use **
+
+```js
+import { MIME_TYPES } from "@excalidraw/excalidraw-next";
+```
+
+[`MIME_TYPES`](https://github.com/excalidraw/excalidraw/blob/master/src/constants.ts#L92) contains all the mime types supported by `Excalidraw`.
 
 ## Need help?
 

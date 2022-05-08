@@ -1,6 +1,6 @@
 import { KEYS } from "../keys";
 import { isInvisiblySmallElement } from "../element";
-import { resetCursor } from "../utils";
+import { updateActiveTool, resetCursor } from "../utils";
 import { ToolButton } from "../components/ToolButton";
 import { done } from "../components/icons";
 import { t } from "../i18n";
@@ -14,6 +14,7 @@ import {
   bindOrUnbindLinearElement,
 } from "../element/binding";
 import { isBindingElement } from "../element/typeChecks";
+import { AppState } from "../types";
 
 export const actionFinalize = register({
   name: "finalize",
@@ -39,6 +40,7 @@ export const actionFinalize = register({
               : undefined,
           appState: {
             ...appState,
+            cursorButton: "up",
             editingLinearElement: null,
           },
           commitToHistory: true,
@@ -136,23 +138,31 @@ export const actionFinalize = register({
       resetCursor(canvas);
     }
 
+    let activeTool: AppState["activeTool"];
+    if (appState.activeTool.type === "eraser") {
+      activeTool = updateActiveTool(appState, {
+        ...(appState.activeTool.lastActiveToolBeforeEraser || {
+          type: "selection",
+        }),
+        lastActiveToolBeforeEraser: null,
+      });
+    } else {
+      activeTool = updateActiveTool(appState, {
+        type: "selection",
+      });
+    }
+
     return {
       elements: newElements,
       appState: {
         ...appState,
+        cursorButton: "up",
         activeTool:
           (appState.activeTool.locked ||
             appState.activeTool.type === "freedraw") &&
           multiPointElement
             ? appState.activeTool
-            : {
-                ...appState.activeTool,
-                type:
-                  appState.activeTool.type === "eraser" &&
-                  appState.activeTool.lastActiveToolBeforeEraser
-                    ? appState.activeTool.lastActiveToolBeforeEraser
-                    : "selection",
-              },
+            : activeTool,
         draggingElement: null,
         multiElement: null,
         editingElement: null,
