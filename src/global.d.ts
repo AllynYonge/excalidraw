@@ -2,6 +2,8 @@
 interface Document {
   fonts?: {
     ready?: Promise<void>;
+    check?: (font: string, text?: string) => boolean;
+    load?: (font: string, text?: string) => Promise<FontFace[]>;
     addEventListener?(
       type: "loading" | "loadingdone" | "loadingerror",
       listener: (this: Document, ev: Event) => any,
@@ -14,7 +16,24 @@ interface Window {
   __EXCALIDRAW_SHA__: string | undefined;
   EXCALIDRAW_ASSET_PATH: string | undefined;
   EXCALIDRAW_EXPORT_SOURCE: string;
+  EXCALIDRAW_THROTTLE_RENDER: boolean | undefined;
   gtag: Function;
+}
+
+interface CanvasRenderingContext2D {
+  // https://developer.mozilla.org/en-US/docs/Web/API/CanvasRenderingContext2D/roundRect
+  roundRect?: (
+    x: number,
+    y: number,
+    width: number,
+    height: number,
+    radii:
+      | number // [all-corners]
+      | [number] // [all-corners]
+      | [number, number] // [top-left-and-bottom-right, top-right-and-bottom-left]
+      | [number, number, number] // [top-left, top-right-and-bottom-left, bottom-right]
+      | [number, number, number, number], // [top-left, top-right, bottom-right, bottom-left]
+  ) => void;
 }
 
 // https://github.com/facebook/create-react-app/blob/ddcb7d5/packages/react-scripts/lib/react-app.d.ts
@@ -30,34 +49,6 @@ declare namespace NodeJS {
 interface Clipboard extends EventTarget {
   write(data: any[]): Promise<void>;
 }
-
-type Mutable<T> = {
-  -readonly [P in keyof T]: T[P];
-};
-
-type Merge<M, N> = Omit<M, keyof N> & N;
-
-/** utility type to assert that the second type is a subtype of the first type.
- * Returns the subtype. */
-type SubtypeOf<Supertype, Subtype extends Supertype> = Subtype;
-
-type ResolutionType<T extends (...args: any) => any> = T extends (
-  ...args: any
-) => Promise<infer R>
-  ? R
-  : any;
-
-// https://github.com/krzkaczor/ts-essentials
-type MarkOptional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
-
-type MarkRequired<T, RK extends keyof T> = Exclude<T, RK> &
-  Required<Pick<T, RK>>;
-
-type MarkNonNullable<T, K extends keyof T> = {
-  [P in K]-?: P extends K ? NonNullable<T[P]> : T[P];
-} & { [P in keyof T]: T[P] };
-
-type NonOptional<T> = Exclude<T, undefined>;
 
 // PNG encoding/decoding
 // -----------------------------------------------------------------------------
@@ -79,23 +70,6 @@ declare module "png-chunks-extract" {
   export = extract;
 }
 // -----------------------------------------------------------------------------
-
-// -----------------------------------------------------------------------------
-// type getter for interface's callable type
-// src: https://stackoverflow.com/a/58658851/927631
-// -----------------------------------------------------------------------------
-type SignatureType<T> = T extends (...args: infer R) => any ? R : never;
-type CallableType<T extends (...args: any[]) => any> = (
-  ...args: SignatureType<T>
-) => ReturnType<T>;
-// --------------------------------------------------------------------------—
-
-// Type for React.forwardRef --- supply only the first generic argument T
-type ForwardRef<T, P = any> = Parameters<
-  CallableType<React.ForwardRefRenderFunction<T, P>>
->[1];
-
-// --------------------------------------------------------------------------—
 
 interface Blob {
   handle?: import("browser-fs-acces").FileSystemHandle;

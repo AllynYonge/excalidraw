@@ -6,6 +6,7 @@ import { register } from "./register";
 
 export const actionGoToCollaborator = register({
   name: "goToCollaborator",
+  viewMode: true,
   trackEvent: { category: "collab" },
   perform: (_elements, appState, value) => {
     const point = value as Collaborator["pointer"];
@@ -31,16 +32,7 @@ export const actionGoToCollaborator = register({
     };
   },
   PanelComponent: ({ appState, updateData, data }) => {
-    const clientId: string | undefined = data?.id;
-    if (!clientId) {
-      return null;
-    }
-
-    const collaborator = appState.collaborators.get(clientId);
-
-    if (!collaborator) {
-      return null;
-    }
+    const [clientId, collaborator] = data as [string, Collaborator];
 
     const { background, stroke } = getClientColors(clientId, appState);
 
@@ -50,7 +42,7 @@ export const actionGoToCollaborator = register({
         border={stroke}
         onClick={() => updateData(collaborator.pointer)}
         name={collaborator.username || ""}
-        src={collaborator.src}
+        src={collaborator.avatarUrl}
       />
     );
   },
