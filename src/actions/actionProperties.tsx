@@ -662,30 +662,29 @@ export const actionChangeFontFamily = register({
       text: string;
       icon: JSX.Element;
     }[] = [
+
+    //FreedrawIcon,
+    //FontFamilyNormalIcon,
+    //FontFamilyCodeIcon,
       {
-        value: FONT_FAMILY.HanyiSentyDiary,
+        value: FONT_FAMILY.HKSztW5,
+        text: t("labels.normal"),
+        icon: FreedrawIcon,
+      },
+      {
+        value: FONT_FAMILY.HK,
         text: t("labels.handDrawn"),
         icon: FreedrawIcon,
       },
       {
         value: FONT_FAMILY.YrdRegular,
         text: t("labels.handDrawn"),
-        icon: <FontFamilyHandDrawnIcon theme={appState.theme} />,
+        icon: FreedrawIcon,
       },
       {
-        value: FONT_FAMILY.HKSztW5,
+        value: FONT_FAMILY.Helvetica,
         text: t("labels.normal"),
         icon: FontFamilyNormalIcon,
-      },
-      {
-        value: FONT_FAMILY.HK,
-        text: t("labels.handDrawn"),
-        icon: <FontFamilyNormalIcon theme={appState.theme} />,
-      },
-      {
-        value: FONT_FAMILY.FangZhengKaiTiJianTi,
-        text: t("labels.handDrawn"),
-        icon: <FontFamilyNormalIcon theme={appState.theme} />,
       },
       // {
       //   value: FONT_FAMILY.Cascadia,
