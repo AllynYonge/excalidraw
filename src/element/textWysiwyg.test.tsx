@@ -526,6 +526,36 @@ describe("textWysiwyg", () => {
       ]);
     });
 
+    it("should set the text element angle to same as container angle when binding to rotated container", async () => {
+      const rectangle = API.createElement({
+        type: "rectangle",
+        width: 90,
+        height: 75,
+        angle: 45,
+      });
+      h.elements = [rectangle];
+      mouse.doubleClickAt(rectangle.x + 10, rectangle.y + 10);
+      const text = h.elements[1] as ExcalidrawTextElementWithContainer;
+      expect(text.type).toBe("text");
+      expect(text.containerId).toBe(rectangle.id);
+      expect(rectangle.boundElements).toStrictEqual([
+        { id: text.id, type: "text" },
+      ]);
+      expect(text.angle).toBe(rectangle.angle);
+      mouse.down();
+      const editor = document.querySelector(
+        ".excalidraw-textEditorContainer > textarea",
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(editor, { target: { value: "Hello World!" } });
+
+      await new Promise((r) => setTimeout(r, 0));
+      editor.blur();
+      expect(rectangle.boundElements).toStrictEqual([
+        { id: text.id, type: "text" },
+      ]);
+    });
+
     it("should compute the container height correctly and not throw error when height is updated while editing the text", async () => {
       const diamond = API.createElement({
         type: "diamond",
@@ -738,6 +768,52 @@ describe("textWysiwyg", () => {
       await new Promise((r) => setTimeout(r, 0));
       editor.blur();
       expect(rectangle.boundElements).toBe(null);
+    });
+
+    it("should bind text to container when triggered via context menu", async () => {
+      expect(h.elements.length).toBe(1);
+      expect(h.elements[0].id).toBe(rectangle.id);
+
+      UI.clickTool("text");
+      mouse.clickAt(20, 30);
+      const editor = document.querySelector(
+        ".excalidraw-textEditorContainer > textarea",
+      ) as HTMLTextAreaElement;
+
+      fireEvent.change(editor, {
+        target: {
+          value: "Excalidraw is an opensource virtual collaborative whiteboard",
+        },
+      });
+
+      editor.dispatchEvent(new Event("input"));
+      await new Promise((cb) => setTimeout(cb, 0));
+      expect(h.elements.length).toBe(2);
+      expect(h.elements[1].type).toBe("text");
+
+      API.setSelectedElements([h.elements[0], h.elements[1]]);
+      fireEvent.contextMenu(GlobalTestState.canvas, {
+        button: 2,
+        clientX: 20,
+        clientY: 30,
+      });
+      const contextMenu = document.querySelector(".context-menu");
+      fireEvent.click(
+        queryByText(contextMenu as HTMLElement, "Bind text to the container")!,
+      );
+      const text = h.elements[1] as ExcalidrawTextElementWithContainer;
+      expect(rectangle.boundElements).toStrictEqual([
+        { id: h.elements[1].id, type: "text" },
+      ]);
+      expect(text.containerId).toBe(rectangle.id);
+      expect(text.verticalAlign).toBe(VERTICAL_ALIGN.MIDDLE);
+      expect(text.textAlign).toBe(TEXT_ALIGN.CENTER);
+      expect(text.x).toBe(
+        h.elements[0].x + h.elements[0].width / 2 - text.width / 2,
+      );
+      expect(text.y).toBe(
+        h.elements[0].y + h.elements[0].height / 2 - text.height / 2,
+      );
     });
 
     it("should update font family correctly on undo/redo by selecting bounded text when font family was updated", async () => {
@@ -1460,7 +1536,7 @@ describe("textWysiwyg", () => {
         expect.objectContaining({
           text: "Excalidraw is an opensource virtual collaborative whiteboard",
           verticalAlign: VERTICAL_ALIGN.MIDDLE,
-          textAlign: TEXT_ALIGN.LEFT,
+          textAlign: TEXT_ALIGN.CENTER,
           boundElements: null,
         }),
       );

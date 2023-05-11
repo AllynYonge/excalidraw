@@ -54,6 +54,7 @@
     "veryLarge": "كبير جدا",
     "solid": "كامل",
     "hachure": "خطوط",
+    "zigzag": "",
     "crossHatch": "خطوط متقطعة",
     "thin": "نحيف",
     "bold": "داكن",
@@ -110,6 +111,7 @@
     "increaseFontSize": "تكبير حجم الخط",
     "unbindText": "فك ربط النص",
     "bindText": "ربط النص بالحاوية",
+    "createContainerFromText": "",
     "link": {
       "edit": "تعديل الرابط",
       "create": "إنشاء رابط",
@@ -204,7 +206,13 @@
     "cannotResolveCollabServer": "تعذر الاتصال بخادم التعاون. الرجاء إعادة تحميل الصفحة والمحاولة مرة أخرى.",
     "importLibraryError": "تعذر تحميل المكتبة",
     "collabSaveFailed": "تعذر الحفظ في قاعدة البيانات. إذا استمرت المشاكل، يفضل أن تحفظ ملفك محليا كي لا تفقد عملك.",
-    "collabSaveFailed_sizeExceeded": "تعذر الحفظ في قاعدة البيانات، يبدو أن القماش كبير للغاية، يفضّل حفظ الملف محليا كي لا تفقد عملك."
+    "collabSaveFailed_sizeExceeded": "تعذر الحفظ في قاعدة البيانات، يبدو أن القماش كبير للغاية، يفضّل حفظ الملف محليا كي لا تفقد عملك.",
+    "brave_measure_text_error": {
+      "line1": "",
+      "line2": "",
+      "line3": "",
+      "line4": ""
+    }
   },
   "toolBar": {
     "selection": "تحديد",
@@ -303,7 +311,8 @@
     "doubleClick": "انقر مرتين",
     "drag": "اسحب",
     "editor": "المحرر",
-    "editSelectedShape": "تعديل الشكل المحدد (النص/السهم/الخط)",
+    "editLineArrowPoints": "",
+    "editText": "",
     "github": "عثرت على مشكلة؟ إرسال",
     "howto": "اتبع التعليمات",
     "or": "أو",
