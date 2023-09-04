@@ -6,6 +6,7 @@ import { isExcalidrawPlusSignedUser } from "../app_constants";
 
 export const AppWelcomeScreen: React.FC<{
   setCollabDialogShown: (toggle: boolean) => any;
+  isCollabEnabled: boolean;
 }> = React.memo((props) => {
   const { t } = useI18n();
   let headingContent;
@@ -18,7 +19,9 @@ export const AppWelcomeScreen: React.FC<{
           return (
             <a
               style={{ pointerEvents: "all" }}
-              href={`${process.env.REACT_APP_PLUS_APP}?utm_source=excalidraw&utm_medium=app&utm_content=welcomeScreenSignedInUser`}
+              href={`${
+                import.meta.env.VITE_APP_PLUS_APP
+              }?utm_source=excalidraw&utm_medium=app&utm_content=welcomeScreenSignedInUser`}
               key={idx}
             >
               Excalidraw+
@@ -46,9 +49,11 @@ export const AppWelcomeScreen: React.FC<{
         <WelcomeScreen.Center.Menu>
           <WelcomeScreen.Center.MenuItemLoadScene />
           <WelcomeScreen.Center.MenuItemHelp />
-          <WelcomeScreen.Center.MenuItemLiveCollaborationTrigger
-            onSelect={() => props.setCollabDialogShown(true)}
-          />
+          {props.isCollabEnabled && (
+            <WelcomeScreen.Center.MenuItemLiveCollaborationTrigger
+              onSelect={() => props.setCollabDialogShown(true)}
+            />
+          )}
           {!isExcalidrawPlusSignedUser && (
             <WelcomeScreen.Center.MenuItemLink
               href="https://plus.excalidraw.com/plus?utm_source=excalidraw&utm_medium=app&utm_content=welcomeScreenGuest"

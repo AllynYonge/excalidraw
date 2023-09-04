@@ -1,8 +1,8 @@
 import fallbackLangData from "./locales/en.json";
 import percentages from "./locales/percentages.json";
-import { ENV } from "./constants";
 import { jotaiScope, jotaiStore } from "./jotai";
 import { atom, useAtomValue } from "jotai";
+import { NestedKeyOf } from "./utility-types";
 
 const COMPLETION_THRESHOLD = 85;
 
@@ -11,6 +11,8 @@ export interface Language {
   label: string;
   rtl?: boolean;
 }
+
+export type TranslationKeys = NestedKeyOf<typeof fallbackLangData>;
 
 export const defaultLang = { code: "en", label: "English" };
 
@@ -71,7 +73,7 @@ export const languages: Language[] = [
 ];
 
 const TEST_LANG_CODE = "__test__";
-if (process.env.NODE_ENV === ENV.DEVELOPMENT) {
+if (import.meta.env.DEV) {
   languages.unshift(
     { code: TEST_LANG_CODE, label: "test language" },
     {
@@ -123,8 +125,9 @@ const findPartsForData = (data: any, parts: string[]) => {
 };
 
 export const t = (
-  path: string,
-  replacement?: { [key: string]: string | number },
+  path: NestedKeyOf<typeof fallbackLangData>,
+  replacement?: { [key: string]: string | number } | null,
+  fallback?: string,
 ) => {
   if (currentLang.code.startsWith(TEST_LANG_CODE)) {
     const name = replacement
@@ -136,9 +139,16 @@ export const t = (
   const parts = path.split(".");
   let translation =
     findPartsForData(currentLangData, parts) ||
-    findPartsForData(fallbackLangData, parts);
+    findPartsForData(fallbackLangData, parts) ||
+    fallback;
   if (translation === undefined) {
-    throw new Error(`Can't find translation for ${path}`);
+    const errorMessage = `Can't find translation for ${path}`;
+    // in production, don't blow up the app on a missing translation key
+    if (import.meta.env.PROD) {
+      console.warn(errorMessage);
+      return "";
+    }
+    throw new Error(errorMessage);
   }
 
   if (replacement) {

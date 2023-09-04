@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from "react";
+import React, { useState, useCallback, useMemo, useRef } from "react";
 import Library, {
   distributeLibraryItemsOnSquareGrid,
   libraryItemsAtom,
@@ -27,6 +27,9 @@ import { useUIAppState } from "../context/ui-appState";
 
 import "./LibraryMenu.scss";
 import { LibraryMenuControlButtons } from "./LibraryMenuControlButtons";
+import { isShallowEqual } from "../utils";
+import { NonDeletedExcalidrawElement } from "../element/types";
+import { LIBRARY_DISABLED_TYPES } from "../constants";
 
 export const isLibraryMenuOpenAtom = atom(false);
 
@@ -42,7 +45,7 @@ export const LibraryMenuContent = ({
   libraryReturnUrl,
   library,
   id,
-  appState,
+  theme,
   selectedItems,
   onSelectItems,
 }: {
@@ -53,35 +56,48 @@ export const LibraryMenuContent = ({
   libraryReturnUrl: ExcalidrawProps["libraryReturnUrl"];
   library: Library;
   id: string;
-  appState: UIAppState;
+  theme: UIAppState["theme"];
   selectedItems: LibraryItem["id"][];
   onSelectItems: (id: LibraryItem["id"][]) => void;
 }) => {
   const [libraryItemsData] = useAtom(libraryItemsAtom, jotaiScope);
 
-  const addToLibrary = useCallback(
-    async (elements: LibraryItem["elements"], libraryItems: LibraryItems) => {
-      trackEvent("element", "addToLibrary", "ui");
-      if (elements.some((element) => element.type === "image")) {
-        return setAppState({
-          errorMessage: "Support for adding images to the library coming soon!",
+  const _onAddToLibrary = useCallback(
+    (elements: LibraryItem["elements"]) => {
+      const addToLibrary = async (
+        processedElements: LibraryItem["elements"],
+        libraryItems: LibraryItems,
+      ) => {
+        trackEvent("element", "addToLibrary", "ui");
+        for (const type of LIBRARY_DISABLED_TYPES) {
+          if (processedElements.some((element) => element.type === type)) {
+            return setAppState({
+              errorMessage: t(`errors.libraryElementTypeError.${type}`),
+            });
+          }
+        }
+        const nextItems: LibraryItems = [
+          {
+            status: "unpublished",
+            elements: processedElements,
+            id: randomId(),
+            created: Date.now(),
+          },
+          ...libraryItems,
+        ];
+        onAddToLibrary();
+        library.setLibrary(nextItems).catch(() => {
+          setAppState({ errorMessage: t("alerts.errorAddingToLibrary") });
         });
-      }
-      const nextItems: LibraryItems = [
-        {
-          status: "unpublished",
-          elements,
-          id: randomId(),
-          created: Date.now(),
-        },
-        ...libraryItems,
-      ];
-      onAddToLibrary();
-      library.setLibrary(nextItems).catch(() => {
-        setAppState({ errorMessage: t("alerts.errorAddingToLibrary") });
-      });
+      };
+      addToLibrary(elements, libraryItemsData.libraryItems);
     },
-    [onAddToLibrary, library, setAppState],
+    [onAddToLibrary, library, setAppState, libraryItemsData.libraryItems],
+  );
+
+  const libraryItems = useMemo(
+    () => libraryItemsData.libraryItems,
+    [libraryItemsData],
   );
 
   if (
@@ -107,17 +123,15 @@ export const LibraryMenuContent = ({
     <LibraryMenuWrapper>
       <LibraryMenuItems
         isLoading={libraryItemsData.status === "loading"}
-        libraryItems={libraryItemsData.libraryItems}
-        onAddToLibrary={(elements) =>
-          addToLibrary(elements, libraryItemsData.libraryItems)
-        }
+        libraryItems={libraryItems}
+        onAddToLibrary={_onAddToLibrary}
         onInsertLibraryItems={onInsertLibraryItems}
         pendingElements={pendingElements}
-        selectedItems={selectedItems}
-        onSelectItems={onSelectItems}
         id={id}
         libraryReturnUrl={libraryReturnUrl}
-        theme={appState.theme}
+        theme={theme}
+        onSelectItems={onSelectItems}
+        selectedItems={selectedItems}
       />
       {showBtn && (
         <LibraryMenuControlButtons
@@ -125,11 +139,38 @@ export const LibraryMenuContent = ({
           style={{ padding: "16px 12px 0 12px" }}
           id={id}
           libraryReturnUrl={libraryReturnUrl}
-          theme={appState.theme}
+          theme={theme}
         />
       )}
     </LibraryMenuWrapper>
   );
+};
+
+const usePendingElementsMemo = (
+  appState: UIAppState,
+  elements: readonly NonDeletedExcalidrawElement[],
+) => {
+  const create = () =>
+    getSelectedElements(elements, appState, {
+      includeBoundTextElement: true,
+      includeElementsInFrames: true,
+    });
+  const val = useRef(create());
+  const prevAppState = useRef<UIAppState>(appState);
+  const prevElements = useRef(elements);
+
+  if (
+    !isShallowEqual(
+      appState.selectedElementIds,
+      prevAppState.current.selectedElementIds,
+    ) ||
+    !isShallowEqual(elements, prevElements.current)
+  ) {
+    val.current = create();
+    prevAppState.current = appState;
+    prevElements.current = elements;
+  }
+  return val.current;
 };
 
 /**
@@ -142,28 +183,36 @@ export const LibraryMenu = () => {
   const appState = useUIAppState();
   const setAppState = useExcalidrawSetAppState();
   const elements = useExcalidrawElements();
-
   const [selectedItems, setSelectedItems] = useState<LibraryItem["id"][]>([]);
+  const memoizedLibrary = useMemo(() => library, [library]);
+  // BUG: pendingElements are still causing some unnecessary rerenders because clicking into canvas returns some ids even when no element is selected.
+  const pendingElements = usePendingElementsMemo(appState, elements);
+
+  const onInsertLibraryItems = useCallback(
+    (libraryItems: LibraryItems) => {
+      onInsertElements(distributeLibraryItemsOnSquareGrid(libraryItems));
+    },
+    [onInsertElements],
+  );
 
   const deselectItems = useCallback(() => {
     setAppState({
       selectedElementIds: {},
       selectedGroupIds: {},
+      activeEmbeddable: null,
     });
   }, [setAppState]);
 
   return (
     <LibraryMenuContent
-      pendingElements={getSelectedElements(elements, appState, true)}
-      onInsertLibraryItems={(libraryItems) => {
-        onInsertElements(distributeLibraryItemsOnSquareGrid(libraryItems));
-      }}
+      pendingElements={pendingElements}
+      onInsertLibraryItems={onInsertLibraryItems}
       onAddToLibrary={deselectItems}
       setAppState={setAppState}
       libraryReturnUrl={appProps.libraryReturnUrl}
-      library={library}
+      library={memoizedLibrary}
       id={id}
-      appState={appState}
+      theme={appState.theme}
       selectedItems={selectedItems}
       onSelectItems={setSelectedItems}
     />

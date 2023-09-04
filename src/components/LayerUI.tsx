@@ -38,15 +38,17 @@ import { actionToggleStats } from "../actions/actionToggleStats";
 import Footer from "./footer/Footer";
 import { isSidebarDockedAtom } from "./Sidebar/Sidebar";
 import { jotaiScope } from "../jotai";
-import { Provider, useAtomValue } from "jotai";
+import { Provider, useAtom, useAtomValue } from "jotai";
 import MainMenu from "./main-menu/MainMenu";
 import { ActiveConfirmDialog } from "./ActiveConfirmDialog";
+import { OverwriteConfirmDialog } from "./OverwriteConfirm/OverwriteConfirm";
 import { HandButton } from "./HandButton";
 import { isHandToolActive } from "../appState";
 import { TunnelsContext, useInitializeTunnels } from "../context/tunnels";
 import { LibraryIcon } from "./icons";
 import { UIAppStateContext } from "../context/ui-appState";
 import { DefaultSidebar } from "./DefaultSidebar";
+import { EyeDropper, activeEyeDropperAtom } from "./EyeDropper";
 
 import "./LayerUI.scss";
 import "./Toolbar.scss";
@@ -55,7 +57,8 @@ interface LayerUIProps {
   actionManager: ActionManager;
   appState: UIAppState;
   files: BinaryFiles;
-  canvas: HTMLCanvasElement | null;
+  canvas: HTMLCanvasElement;
+  interactiveCanvas: HTMLCanvasElement | null;
   setAppState: React.Component<any, AppState>["setState"];
   elements: readonly NonDeletedExcalidrawElement[];
   onLockToggle: () => void;
@@ -70,6 +73,7 @@ interface LayerUIProps {
   onExportImage: AppClassProperties["onExportImage"];
   renderWelcomeScreen: boolean;
   children?: React.ReactNode;
+  app: AppClassProperties;
 }
 
 const DefaultMainMenu: React.FC<{
@@ -98,6 +102,15 @@ const DefaultMainMenu: React.FC<{
   );
 };
 
+const DefaultOverwriteConfirmDialog = () => {
+  return (
+    <OverwriteConfirmDialog __fallback>
+      <OverwriteConfirmDialog.Actions.SaveToDisk />
+      <OverwriteConfirmDialog.Actions.ExportToImage />
+    </OverwriteConfirmDialog>
+  );
+};
+
 const LayerUI = ({
   actionManager,
   appState,
@@ -105,6 +118,7 @@ const LayerUI = ({
   setAppState,
   elements,
   canvas,
+  interactiveCanvas,
   onLockToggle,
   onHandToolToggle,
   onPenModeToggle,
@@ -116,9 +130,15 @@ const LayerUI = ({
   onExportImage,
   renderWelcomeScreen,
   children,
+  app,
 }: LayerUIProps) => {
   const device = useDevice();
   const tunnels = useInitializeTunnels();
+
+  const [eyeDropperState, setEyeDropperState] = useAtom(
+    activeEyeDropperAtom,
+    jotaiScope,
+  );
 
   const renderJSONExportDialog = () => {
     if (!UIOptions.canvasActions.export) {
@@ -198,12 +218,7 @@ const LayerUI = ({
     return (
       <FixedSideContainer side="top">
         <div className="App-menu App-menu_top">
-          <Stack.Col
-            gap={6}
-            className={clsx("App-menu_top__left", {
-              "disable-pointerEvents": appState.zenModeEnabled,
-            })}
-          >
+          <Stack.Col gap={6} className={clsx("App-menu_top__left")}>
             {renderCanvasActions()}
             {shouldRenderSelectedShapeActions && renderSelectedShapeActions()}
           </Stack.Col>
@@ -229,9 +244,9 @@ const LayerUI = ({
                       >
                         <HintViewer
                           appState={appState}
-                          elements={elements}
                           isMobile={device.isMobile}
                           device={device}
+                          app={app}
                         />
                         {heading}
                         <Stack.Row gap={1}>
@@ -248,7 +263,7 @@ const LayerUI = ({
                             title={t("toolBar.lock")}
                           />
 
-                          <div className="App-toolbar__divider"></div>
+                          <div className="App-toolbar__divider" />
 
                           <HandButton
                             checked={isHandToolActive(appState)}
@@ -259,7 +274,7 @@ const LayerUI = ({
 
                           <ShapesSwitcher
                             appState={appState}
-                            canvas={canvas}
+                            interactiveCanvas={interactiveCanvas}
                             activeTool={appState.activeTool}
                             setAppState={setAppState}
                             onImageAction={({ pointerType }) => {
@@ -342,6 +357,7 @@ const LayerUI = ({
       >
         {t("toolBar.library")}
       </DefaultSidebar.Trigger>
+      <DefaultOverwriteConfirmDialog />
       {/* ------------------------------------------------------------------ */}
 
       {appState.isLoading && <LoadingMessage delay={250} />}
@@ -349,6 +365,21 @@ const LayerUI = ({
         <ErrorDialog onClose={() => setAppState({ errorMessage: null })}>
           {appState.errorMessage}
         </ErrorDialog>
+      )}
+      {eyeDropperState && !device.isMobile && (
+        <EyeDropper
+          swapPreviewOnAlt={eyeDropperState.swapPreviewOnAlt}
+          previewType={eyeDropperState.previewType}
+          onCancel={() => {
+            setEyeDropperState(null);
+          }}
+          onSelect={(color, event) => {
+            setEyeDropperState((state) => {
+              return state?.keepOpenOnAlt && event.altKey ? state : null;
+            });
+            eyeDropperState?.onSelect?.(color, event);
+          }}
+        />
       )}
       {appState.openDialog === "help" && (
         <HelpDialog
@@ -358,6 +389,7 @@ const LayerUI = ({
         />
       )}
       <ActiveConfirmDialog />
+      <tunnels.OverwriteConfirmDialogTunnel.Out />
       {renderImageExportDialog()}
       {renderJSONExportDialog()}
       {appState.pasteDialog.shown && (
@@ -373,6 +405,7 @@ const LayerUI = ({
       )}
       {device.isMobile && (
         <MobileMenu
+          app={app}
           appState={appState}
           elements={elements}
           actionManager={actionManager}
@@ -382,7 +415,7 @@ const LayerUI = ({
           onLockToggle={onLockToggle}
           onHandToolToggle={onHandToolToggle}
           onPenModeToggle={onPenModeToggle}
-          canvas={canvas}
+          interactiveCanvas={interactiveCanvas}
           onImageAction={onImageAction}
           renderTopRightUI={renderTopRightUI}
           renderCustomStats={renderCustomStats}
@@ -433,7 +466,7 @@ const LayerUI = ({
                 className="scroll-back-to-content"
                 onClick={() => {
                   setAppState((appState) => ({
-                    ...calculateScrollCenter(elements, appState, canvas),
+                    ...calculateScrollCenter(elements, appState),
                   }));
                 }}
               >
@@ -476,8 +509,18 @@ const areEqual = (prevProps: LayerUIProps, nextProps: LayerUIProps) => {
     return false;
   }
 
-  const { canvas: _prevCanvas, appState: prevAppState, ...prev } = prevProps;
-  const { canvas: _nextCanvas, appState: nextAppState, ...next } = nextProps;
+  const {
+    canvas: _pC,
+    interactiveCanvas: _pIC,
+    appState: prevAppState,
+    ...prev
+  } = prevProps;
+  const {
+    canvas: _nC,
+    interactiveCanvas: _nIC,
+    appState: nextAppState,
+    ...next
+  } = nextProps;
 
   return (
     isShallowEqual(
