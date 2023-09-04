@@ -9,6 +9,7 @@
 .idea
 .vercel
 .vscode
+.lock
 .yarn
 *.log
 *.tgz
